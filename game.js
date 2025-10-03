@@ -26,7 +26,7 @@ const flowConfigs = [
         diseases: ["Peptic ulcer disease", "Functional dyspepsia", "Hiatal hernia","Hiatal hernia","Esophageal spasm",
             "Achalasia","Cholelithiasis","Pulmonary embolism","Anxiety","Gastroesophageal reflux","Chronic heart failure","Unstable angina",],
 
-        medicines: [ "NSAID", "Tramadol","Proton pump inhibitor", "Metoclopramide","Paracetamol" ],
+        medicines: ["Tramadol","NSAID","Proton pump inhibitor", "Metoclopramide","Paracetamol"],
 
         correctDiseases: ["Gastroesophageal reflux"],
         correctMedicines: ["Proton pump inhibitor", "Metoclopramide"],
@@ -306,7 +306,7 @@ class GameBackgroundScene extends Phaser.Scene {
         // Medical Button
         let medicalButton = this.add.image(
             this.sys.game.config.width/2,
-            this.sys.game.config.height-140,
+            this.sys.game.config.height-240,
             'medicalButton'
         )
         .setOrigin(0.5).setInteractive().setScale(0.08);
@@ -361,7 +361,7 @@ class GameBackgroundScene extends Phaser.Scene {
     }
 
     update(){
-        if(this.guard) this.guard.y = this.sys.game.config.height*0.7 + Math.sin(t)*5;
+        if(this.guard) this.guard.y = this.sys.game.config.height*0.75 + Math.sin(t)*5;
         if(this.banner){
             this.banner.x += bannerSpeed;
             if(this.banner.x > this.sys.game.config.width + 200) this.banner.x = -200;
@@ -423,7 +423,7 @@ class PatientCheck extends Phaser.Scene {
 class DiagnosisScene extends Phaser.Scene {
     constructor() {
         super('DiagnosisScene');
-        this.flowIndex = 0; // เริ่ม Flow แรก
+        this.flowIndex = 0;
     }
 
     init(data) {
@@ -436,194 +436,230 @@ class DiagnosisScene extends Phaser.Scene {
 
     loadFlow(index) {
         const config = flowConfigs[index];
-
-        // Background
         let centerX = this.cameras.main.centerX;
         let centerY = this.cameras.main.centerY;
-        let bg = this.add.image(centerX, centerY, config.bg).setOrigin(0.5);
+
+        // 📌 Container ครอบ UI หลัก
+        let uiContainer = this.add.container(centerX, centerY);
+
+        // Background
+        let bg = this.add.image(0, 0, config.bg).setOrigin(0.5);
         let scaleX = this.sys.game.config.width / bg.width;
         let scaleY = this.sys.game.config.height / bg.height;
         let scale = Math.min(scaleX, scaleY) * 1.4;
         bg.setScale(scale);
         bg.y += 66;
+        uiContainer.add(bg);
 
         // === ECG/X-Ray/Other ===
         this.resultImages = {
-    ecg: this.add.image(centerX + 117, centerY, config.ecg).setVisible(false).setScale(0.93),
-    xray: this.add.image(centerX + 117, centerY, config.xray).setVisible(false).setScale(0.93),
-    other: this.add.image(centerX + 117, centerY, config.other).setVisible(false).setScale(0.93),
-    
-};
-let currentShown = null;
+            ecg: this.add.image(121, 0, config.ecg).setVisible(false).setScale(0.95),
+            xray: this.add.image(121, 0, config.xray).setVisible(false).setScale(0.95),
+            other: this.add.image(121, 0, config.other).setVisible(false).setScale(0.95),
+        };
+        Object.values(this.resultImages).forEach(img => uiContainer.add(img));
 
-// 🔹 ฟังก์ชันช่วยซ่อนรูปทั้งหมด & toggle
-const hideAll = () => Object.values(this.resultImages).forEach(img => img.setVisible(false));
-const toggleResult = (key) => {
-    if(currentShown === key){ 
-        hideAll(); 
-        currentShown = null; 
-    } else { 
-        hideAll(); 
-        this.resultImages[key].setVisible(true); 
-        currentShown = key; 
-    }
-};
+        let currentShown = null;
+        const hideAll = () => Object.values(this.resultImages).forEach(img => img.setVisible(false));
+        const toggleResult = (key) => {
+            if (currentShown === key) { hideAll(); currentShown = null; }
+            else { hideAll(); this.resultImages[key].setVisible(true); currentShown = key; }
+        };
 
-// Buttons
-const btnScale = 0.0272;
-const ecgBtn = this.add.image(centerX + 497, centerY - 229, 'btn_ecg').setInteractive().setScale(btnScale);
-const xrayBtn = this.add.image(centerX + 497, centerY - 6, 'btn_xray').setInteractive().setScale(btnScale);
-const otherBtn = this.add.image(centerX + 497, centerY + 218, 'btn_other').setInteractive().setScale(btnScale);
-[ecgBtn, xrayBtn, otherBtn].forEach(btn => addButtonEffect(this, btn, btnScale));
+        // Buttons ด้านขวา
+        const btnScale = 0.0272;
+        const ecgBtn = this.add.image(bg.displayWidth/2 - 110, -bg.displayHeight/2 + 288, 'btn_ecg').setInteractive().setScale(btnScale);
+        const xrayBtn = this.add.image(bg.displayWidth/2 - 110, -6, 'btn_xray').setInteractive().setScale(btnScale);
+        const otherBtn = this.add.image(bg.displayWidth/2 - 110, bg.displayHeight/2 - 299, 'btn_other').setInteractive().setScale(btnScale);
 
-// 🔹 Bind ปุ่ม หลังประกาศ toggleResult
-ecgBtn.on('pointerup', () => toggleResult("ecg"));
-xrayBtn.on('pointerup', () => toggleResult("xray"));
-otherBtn.on('pointerup', () => toggleResult("other"));
+        [ecgBtn, xrayBtn, otherBtn].forEach(btn => {
+            addButtonEffect(this, btn, btnScale);
+            uiContainer.add(btn);
+        });
 
-        // === Diagnosis Button ===
-        let diagnosisBtn = this.add.image(centerX + 117, centerY + 261, 'btn_diagnosis')
+        ecgBtn.on('pointerup', () => toggleResult("ecg"));
+        xrayBtn.on('pointerup', () => toggleResult("xray"));
+        otherBtn.on('pointerup', () => toggleResult("other"));
+
+        // Diagnosis Button
+        let diagnosisBtn = this.add.image(117, 261, 'btn_diagnosis')
             .setInteractive().setScale(0.15);
         addButtonEffect(this, diagnosisBtn, 0.15);
+        uiContainer.add(diagnosisBtn);
         diagnosisBtn.on('pointerup', () => this.showDiagnosis(config));
 
- // แทนที่ backBtn เป็นภาพ
-let backBtn = this.add.image(1352, 28, 'myBackIcon')
-    .setOrigin(0.5)
-    .setScale(0.03)
-    .setInteractive();
+        // Back Button
+        let backBtn = this.add.image(bg.displayWidth/2 - 21, -bg.displayHeight/2 + 177, 'myBackIcon')
+            .setOrigin(0.5)
+            .setScale(0.03)
+            .setInteractive();
+        uiContainer.add(backBtn);
 
-// ✅ ทำให้ backBtn อยู่บนสุดตลอด
-backBtn.setScrollFactor(0); 
-backBtn.setDepth(9999);  // ความลึกสูงสุด
-
-// คลิกกลับ
-backBtn.on('pointerup', () => {
-    // รีเซตกลับไป GameBackgroundScene
-    this.scene.stop('DiagnosisScene');
-    this.scene.start('GameBackgroundScene');
-});
-
-// เอฟเฟกต์ hover
-backBtn.on('pointerover', () => backBtn.setTint(0xaaaaaa));
-backBtn.on('pointerout', () => backBtn.clearTint());
-}
+        backBtn.on('pointerup', () => {
+            this.scene.stop('DiagnosisScene');
+            this.scene.start('GameBackgroundScene');
+        });
+        backBtn.on('pointerover', () => backBtn.setTint(0xaaaaaa));
+        backBtn.on('pointerout', () => backBtn.clearTint());
+    }
 
     showDiagnosis(config) {
     let centerX = this.cameras.main.centerX;
     let centerY = this.cameras.main.centerY;
-    const btnScale = 0.0186;
 
-    // background
-    let bg = this.add.image(centerX, centerY, 'DiagnosisBG').setOrigin(0.5);
+    // 📌 Container ครอบ Diagnosis popup
+    let popup = this.add.container(centerX, centerY).setDepth(20);
+
+    // ==================== Background ====================
+    let bg = this.add.image(0, 0, 'DiagnosisBG').setOrigin(0.5);
     let scaleX = this.sys.game.config.width / bg.width;
     let scaleY = this.sys.game.config.height / bg.height;
     let scale = Math.min(scaleX, scaleY) * 1.4;
     bg.setScale(scale);
     bg.y += 66;
+    popup.add(bg);
 
-    // ==================== Disease Options ====================
-    let diseaseBtn = this.add.image(centerX - 476, 58, 'btn_disease_main')
-        .setInteractive().setScale(btnScale);
+    const btnScale = 0.0186; // ใช้ scale เดิมของคุณ
+
+    // ==================== Disease Button ====================
+    let diseaseBtn = this.add.image(-476, -310, 'btn_disease_main')
+        .setInteractive()
+        .setScale(btnScale);
     addButtonEffect(this, diseaseBtn, btnScale);
+    popup.add(diseaseBtn);
 
     this.selectedDiseases = [];
     this.diseaseOptions = [];
     config.diseases.forEach((d, i) => {
-        let option = this.add.text(centerX - 420 - 85, 280 + i*40 - 150, d, { font: "20px Arial", fill: "#beaf26ff" })
+        let option = this.add.text(-516, -250 + i*40, d, { font: "20px Arial", fill: "#beaf26ff" })
             .setPadding(5)
             .setInteractive({ useHandCursor: true })
-            .setDepth(10)
             .setVisible(false);
 
-        // ✅ Hover effect
-          option.on('pointerover', () => option.setStyle({ fill: "#f8f695ff" }));
-          option.on('pointerout', () => option.setStyle({ fill: "#beaf26ff" }));
+        option.on('pointerover', () => option.setStyle({ fill: "#f8f695ff" }));
+        option.on('pointerout', () => option.setStyle({ fill: "#beaf26ff" }));
 
         option.on('pointerup', () => {
-            if (this.selectedDiseases.includes(d)) this.selectedDiseases = this.selectedDiseases.filter(x => x !== d);
-            else this.selectedDiseases.push(d);
-            this.updateCenterDisplay();
+            if (this.selectedDiseases.includes(d)) 
+                this.selectedDiseases = this.selectedDiseases.filter(x => x !== d);
+            else 
+                this.selectedDiseases.push(d);
+            this.updateCenterDisplay(popup);
         });
+        popup.add(option);
         this.diseaseOptions.push(option);
     });
 
     diseaseBtn.on('pointerup', () => {
         let visible = !this.diseaseOptions[0].visible;
         this.diseaseOptions.forEach(opt => opt.setVisible(visible));
-        // ซ่อน Medicine ถ้าเปิด Disease
         if (visible) this.medOptions?.forEach(opt => opt.setVisible(false));
     });
 
-    // ==================== Medicine Options ====================
-    let medBtn = this.add.image(centerX - 323, 58, 'btn_med_main')
-        .setInteractive().setScale(btnScale);
+    // ==================== Medicine Button ====================
+    let medBtn = this.add.image(-323, -310, 'btn_med_main')
+        .setInteractive()
+        .setScale(btnScale);
     addButtonEffect(this, medBtn, btnScale);
+    popup.add(medBtn);
 
     this.selectedMedicines = [];
     this.medOptions = [];
     config.medicines.forEach((m, i) => {
-        let option = this.add.text(centerX - 415 - 85, 280 + i*40 - 150, m, { font: "20px Arial", fill: "#beaf26ff" })
+        let option = this.add.text(-515, -695 + (i + config.diseases.length)*40, m, { font: "20px Arial", fill: "#beaf26ff" })
             .setPadding(5)
             .setInteractive({ useHandCursor: true })
-            .setDepth(10)
             .setVisible(false);
 
-         // ✅ Hover effect
-    option.on('pointerover', () => option.setStyle({ fill: "#f8f695ff" }));
-    option.on('pointerout', () => option.setStyle({ fill: "#beaf26ff" }));
+        option.on('pointerover', () => option.setStyle({ fill: "#f8f695ff" }));
+        option.on('pointerout', () => option.setStyle({ fill: "#beaf26ff" }));
 
         option.on('pointerup', () => {
-            if (this.selectedMedicines.includes(m)) this.selectedMedicines = this.selectedMedicines.filter(x => x !== m);
-            else this.selectedMedicines.push(m);
-            this.updateCenterDisplay();
+            if (this.selectedMedicines.includes(m)) 
+                this.selectedMedicines = this.selectedMedicines.filter(x => x !== m);
+            else 
+                this.selectedMedicines.push(m);
+            this.updateCenterDisplay(popup);
         });
+        popup.add(option);
         this.medOptions.push(option);
     });
 
     medBtn.on('pointerup', () => {
         let visible = !this.medOptions[0].visible;
         this.medOptions.forEach(opt => opt.setVisible(visible));
-        // ซ่อน Disease ถ้าเปิด Medicine
         if (visible) this.diseaseOptions?.forEach(opt => opt.setVisible(false));
     });
 
     // ==================== Patient Button ====================
-    let patientBtn = this.add.image(centerX - 171, 58, 'btn_patient_main').setInteractive().setScale(btnScale);
+    let patientBtn = this.add.image(-171, -310, 'btn_patient_main')
+        .setInteractive()
+        .setScale(btnScale);
     addButtonEffect(this, patientBtn, btnScale);
-    patientBtn.on('pointerup', () => this.scene.start('DiagnosisScene', { flowIndex: this.flowIndex }));
+    popup.add(patientBtn);
+
+    patientBtn.on('pointerup', () => {
+        this.scene.start('DiagnosisScene', { flowIndex: this.flowIndex });
+    });
 
     // ==================== Submit Button ====================
-    let submitBtn = this.add.image(centerX + 160, 579, 'btn_submit').setInteractive().setScale(0.15);
-    addButtonEffect(this, submitBtn, 0.15);
-    submitBtn.on('pointerup', () => this.checkAnswer(config));
+let submitBtn = this.add.image(160, 190, 'btn_submit')
+    .setInteractive()
+    .setScale(0.15);
+addButtonEffect(this, submitBtn, 0.15);
+popup.add(submitBtn);
 
-    // ==================== Update Center Display ====================
-    this.updateCenterDisplay = () => {
-        if (this.resultTextGroup) this.resultTextGroup.forEach(t => t.destroy());
-        this.resultTextGroup = [];
+submitBtn.on('pointerup', () => {
+    // ตรวจสอบว่าเลือกโรคและยาแล้ว
+    const hasDisease = this.selectedDiseases?.length > 0;
+    const hasMedicine = this.selectedMedicines?.length > 0;
 
-        // โรค
-        let offsetX = 0;
-        this.selectedDiseases.forEach(d => {
-            let t = this.add.text(centerX - 82 + offsetX, centerY - 52, d, { font: "24px Arial", fill: "#b89e0bff" }).setOrigin(0, 2);
-            this.resultTextGroup.push(t);
-            offsetX += t.width + 10;
-        });
+    if (hasDisease && hasMedicine) {
+        // เลือกครบแล้ว → เรียก checkAnswer
+        this.checkAnswer(config);
+    } else {
+        // ยังไม่ครบ → แสดงข้อความแจ้งผู้เล่น
+        this.showMessage("กรุณาเลือกโรคและยาอย่างน้อย 1 รายการ");
+    }
+});
 
-        // ยา
-        offsetX = 0;
-        this.selectedMedicines.forEach(m => {
-            let t = this.add.text(centerX - 59 + offsetX, centerY - 5, m, { font: "24px Arial", fill: "#b89e0bff" }).setOrigin(0, 1);
-            this.resultTextGroup.push(t);
-            offsetX += t.width + 10;
-        });
-    };
+// ==================== Update Center Display ====================
+this.updateCenterDisplay = (popup) => {
+    if (this.resultTextGroup) this.resultTextGroup.forEach(t => t.destroy());
+    this.resultTextGroup = [];
+
+    // โรค
+    let offsetX = 0;
+    this.selectedDiseases.forEach(d => {
+        let t = this.add.text(-82 + offsetX, -52, d, { font: "24px Arial", fill: "#b89e0bff" }).setOrigin(0, 2);
+        popup.add(t);
+        this.resultTextGroup.push(t);
+        offsetX += t.width + 10;
+    });
+
+    // ยา
+    offsetX = 0;
+    this.selectedMedicines.forEach(m => {
+        let t = this.add.text(-59 + offsetX, -5, m, { font: "24px Arial", fill: "#b89e0bff" }).setOrigin(0, 1);
+        popup.add(t);
+        this.resultTextGroup.push(t);
+        offsetX += t.width + 10;
+    });
+};
+
+
+    // ==================== Tween popup แสดง ====================
+    popup.setScale(0);
+    this.tweens.add({
+        targets: popup,
+        scale: 1,
+        duration: 300,
+        ease: 'Back.Out'
+    });
 }
 
-
 // ================== checkAnswer ==================
-checkAnswer(config) { 
+checkAnswer(config) {
     const selectedDiseases = this.selectedDiseases || [];
     const selectedMedicines = this.selectedMedicines || [];
 
@@ -632,7 +668,6 @@ checkAnswer(config) {
 
     const diseaseCorrect = correctDiseases.every(d => selectedDiseases.includes(d)) &&
                            selectedDiseases.every(d => correctDiseases.includes(d));
-
     const medicinesCorrect = correctMedicines.every(m => selectedMedicines.includes(m)) &&
                              selectedMedicines.every(m => correctMedicines.includes(m));
 
@@ -641,50 +676,78 @@ checkAnswer(config) {
     const centerX = this.cameras.main.centerX;
     const centerY = this.cameras.main.centerY;
 
-    // ================== popup ถูกผิด ==================
-    let popupImg = this.add.image(0, 0, isCorrect ? "popupCorrect" : "popupWrong");
-    popupImg.setScale(0.6);
-    popupImg.setOrigin(0.5);
-    // === เล่นเสียงตอน popup โผล่ ===
-if (isCorrect) {
-    this.sound.play('correctSound', { volume: 1 });
-} 
+    // ================== popup container ==================
+    let popupGroup = this.add.container(centerX, centerY).setDepth(100);
 
-    let revealBtn = this.add.image(25, 35, "btnReveal").setInteractive().setScale(0.01);
-    let retryBtn  = this.add.image(100, 35, "btnRetry").setInteractive().setScale(0.01);
-    let nextBtn   = this.add.image(170, 70, "btnNext").setInteractive().setScale(0.01);
+    // background
+    let popupImg = this.add.image(0, 0, isCorrect ? "popupCorrect" : "popupWrong").setOrigin(0.5).setScale(0.6);
+    popupGroup.add(popupImg);
 
-    [revealBtn, retryBtn, nextBtn].forEach(btn => addButtonEffect(this, btn, btn.scaleX));
+    // ปุ่ม
+    const btnScale = 0.012; // ปรับให้เหมาะกับ popup scale
+    let revealBtn = this.add.image(11, 36, "btnReveal").setInteractive().setScale(btnScale);
+    let retryBtn  = this.add.image(100, 36, "btnRetry").setInteractive().setScale(btnScale);
+    let nextBtn   = this.add.image(188, 65, "btnNext").setInteractive().setScale(btnScale);
 
-    let popupGroup = this.add.container(centerX, centerY, [popupImg, revealBtn, retryBtn, nextBtn]);
-    popupGroup.setDepth(10);
+    popupGroup.add([revealBtn, retryBtn, nextBtn]);
 
-    // --- ปุ่มเฉลย ---
-    revealBtn.on('pointerup', () => {
-        popupImg.setTexture(config.popupAnswer);  
-        popupImg.setScale(0.92);
-        popupGroup.y += 60;
+    // เรียก effect หลังใส่ container
+    [revealBtn, retryBtn, nextBtn].forEach(btn => addButtonEffect(this, btn, btnScale));
 
-        revealBtn.setVisible(false);
-        retryBtn.setVisible(false);
-        nextBtn.setVisible(false);
-
-        let backBtn = this.add.image(5, 200, "btnBack").setInteractive().setScale(0.02);
-        popupGroup.add(backBtn);
-        addButtonEffect(this, backBtn, 0.02);
-
-        backBtn.on('pointerup', () => {
-            popupImg.setTexture(isCorrect ? "popupCorrect" : "popupWrong");
-            popupImg.setScale(0.6);
-            popupGroup.y -= 60;
-            revealBtn.setVisible(true);
-            retryBtn.setVisible(true);
-            nextBtn.setVisible(true);
-            backBtn.destroy();
-        });
+    // --- Tween popup เด้ง ---
+    popupGroup.setScale(0);
+    this.tweens.add({
+        targets: popupGroup,
+        scale: 1,
+        duration: 300,
+        ease: 'Back.Out'
     });
 
-    // --- ปุ่มเล่นอีกรอบ ---
+    // --- เล่นเสียงถ้า correct ---
+    if (isCorrect) this.sound.play('correctSound', { volume: 1 });
+
+    // ================== ปุ่มเฉลย ==================
+   revealBtn.on('pointerup', () => {
+    // เปลี่ยน texture เป็นเฉลย
+    popupImg.setTexture(config.popupAnswer);
+
+    // --- ปรับขนาด popupImg responsive เล็กน้อย ---
+    let scaleX = this.sys.game.config.width / popupImg.width;
+    let scaleY = this.sys.game.config.height / popupImg.height;
+    let newScale = Math.min(scaleX, scaleY) * 1.4; // คงสัดส่วนเดิม
+    popupImg.setScale(newScale);
+
+    // คงตำแหน่งเดิมของ container
+    popupGroup.y += 60;
+
+    // ซ่อนปุ่มเดิม
+    revealBtn.setVisible(false);
+    retryBtn.setVisible(false);
+    nextBtn.setVisible(false);
+
+    // --- ปุ่ม back ---
+    let backBtn = this.add.image(5, 200, "btnBack")
+        .setInteractive()
+        .setScale(0.02); // scale เดิม
+    popupGroup.add(backBtn);
+    addButtonEffect(this, backBtn, 0.02);
+
+    backBtn.on('pointerup', () => {
+        // คืนค่า popupImg เดิม
+        popupImg.setTexture(isCorrect ? "popupCorrect" : "popupWrong");
+        popupImg.setScale(0.6); // scale เดิม
+        popupGroup.y -= 60;
+
+        // แสดงปุ่มเดิม
+        revealBtn.setVisible(true);
+        retryBtn.setVisible(true);
+        nextBtn.setVisible(true);
+
+        backBtn.destroy();
+    });
+});
+
+    // ================== ปุ่ม Retry ==================
     retryBtn.on('pointerup', () => {
         popupGroup.destroy();
         if(this.diseaseOptions) this.diseaseOptions.forEach(opt => opt.setVisible(false));
@@ -694,42 +757,47 @@ if (isCorrect) {
         this.scene.start('DiagnosisScene', { flowIndex: this.flowIndex });
     });
 
-    // --- ปุ่มถัดไป ---
+    // ================== ปุ่ม Next ==================
     nextBtn.on('pointerup', () => {
         popupGroup.destroy();
         const nextIndex = this.flowIndex + 1;
-
         if(nextIndex < flowConfigs.length){
-            // ด่านปกติ → ไป Flow ถัดไป
             this.scene.start('DiagnosisScene', { flowIndex: nextIndex });
         } else {
+
             // ================== ด่านสุดท้าย ==================
-            let finishedPopupImg = this.add.image(0, 0, 'popupFinished') // ใช้ key ของ popup ที่คุณออกแบบ
-                .setOrigin(0.5)
-                .setScale(0.92);
+            // container popup
+let finishedPopupGroup = this.add.container(centerX, centerY).setDepth(100).setScale(0);
 
-            let closeBtn = this.add.image(170, 70, 'btnNext') // ใช้ปุ่ม Next หรือปุ่มปิดตามดีไซน์
-                .setOrigin(0.5)
-                .setInteractive()
-                .setScale(0.02);
+// background
+let finishedPopupImg = this.add.image(0, 0, 'popupFinished')
+    .setOrigin(0.5)
+    .setScale(0.92); // ใช้สเกลเดิม
+finishedPopupGroup.add(finishedPopupImg);
 
-            addButtonEffect(this, closeBtn, closeBtn.scaleX);
+// ปุ่ม close / next
+let closeBtn = this.add.image(170, 70, 'btnNext') // ใช้ตำแหน่งเดิม
+    .setOrigin(0.5)
+    .setInteractive()
+    .setScale(0.02); // ใช้สเกลเดิม
+finishedPopupGroup.add(closeBtn);
 
-            let finishedPopupGroup = this.add.container(centerX, centerY, [finishedPopupImg, closeBtn])
-                .setDepth(10)
-                .setScale(0);
+// เรียก effect หลังใส่ container
+addButtonEffect(this, closeBtn, closeBtn.scaleX);
 
-            this.tweens.add({
-                targets: finishedPopupGroup,
-                scale: 0.8,
-                duration: 300,
-                ease: 'Back.Out'
-            });
+// Tween popup เด้ง
+this.tweens.add({
+    targets: finishedPopupGroup,
+    scale: 0.8, // scale tween ของ container
+    duration: 300,
+    ease: 'Back.Out'
+});
 
-            closeBtn.on('pointerup', () => {
-                finishedPopupGroup.destroy();
-                this.scene.start('GameBackgroundScene'); 
-            });
+// event ปุ่ม
+closeBtn.on('pointerup', () => {
+    finishedPopupGroup.destroy();
+    this.scene.start('GameBackgroundScene'); 
+});
         }
     });
 }
@@ -772,4 +840,6 @@ function addButtonEffect(scene, button, scaleFactor) {
         if (scaleFactor) button.setScale(scaleFactor);
     });
 }
+
+
 
